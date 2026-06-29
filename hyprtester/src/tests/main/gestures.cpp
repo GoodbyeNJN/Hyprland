@@ -61,6 +61,8 @@ TEST_CASE(gestures) {
     }
 
     OK(getFromSocket("/eval hl.gesture({ button = 'mouse:274', direction = 'right', action = 'float' })"));
+    OK(getFromSocket("/eval hl.gesture({ keys = 'SUPER + mouse:274', direction = 'right', action = 'float' })"));
+    OK(getFromSocket("/eval hl.gesture({ keys = 'SUPER + CTRL + mouse:272', direction = 'right', action = 'float' })"));
     OK(getFromSocket("/eval hl.plugin.test.gesture_button_press(274)"));
     OK(getFromSocket("/eval hl.plugin.test.gesture_motion(300, 0)"));
     OK(getFromSocket("/eval hl.plugin.test.gesture_button_release(274)"));

@@ -42,7 +42,11 @@
 #include "../../../managers/input/trackpad/gestures/ScrollMoveGesture.hpp"
 #include "../../../managers/permissions/DynamicPermissionManager.hpp"
 
+#include <expected>
+
 #include <hyprutils/string/Numeric.hpp>
+#include <hyprutils/string/String.hpp>
+#include <hyprutils/string/VarList.hpp>
 #include <hyprutils/utils/ScopeGuard.hpp>
 
 using namespace Config;
@@ -51,6 +55,92 @@ using namespace Config::Lua::Bindings;
 using namespace Hyprutils::Utils;
 
 namespace {
+    std::expected<std::pair<uint32_t, std::optional<uint32_t>>, std::string> parseGestureKeys(std::string_view keys) {
+        if (keys.empty())
+            return std::unexpected("empty key string");
+
+        uint32_t modMask = 0;
+        std::optional<uint32_t> button = std::nullopt;
+        bool sawButton = false;
+
+        Hyprutils::String::CVarList2 vl(keys, 0, '+', true);
+
+        for (const auto& a : vl) {
+            auto arg = Hyprutils::String::trim(a);
+            if (arg.empty())
+                continue;
+
+            if (arg == "SHIFT") {
+                modMask |= HL_MODIFIER_SHIFT;
+                continue;
+            }
+
+            if (arg == "CAPS") {
+                modMask |= HL_MODIFIER_CAPS;
+                continue;
+            }
+
+            if (arg == "CTRL" || arg == "CONTROL") {
+                modMask |= HL_MODIFIER_CTRL;
+                continue;
+            }
+
+            if (arg == "ALT" || arg == "MOD1") {
+                modMask |= HL_MODIFIER_ALT;
+                continue;
+            }
+
+            if (arg == "MOD2") {
+                modMask |= HL_MODIFIER_MOD2;
+                continue;
+            }
+
+            if (arg == "MOD3") {
+                modMask |= HL_MODIFIER_MOD3;
+                continue;
+            }
+
+            if (arg == "SUPER" || arg == "WIN" || arg == "LOGO" || arg == "MOD4" || arg == "META") {
+                modMask |= HL_MODIFIER_META;
+                continue;
+            }
+
+            if (arg == "MOD5") {
+                modMask |= HL_MODIFIER_MOD5;
+                continue;
+            }
+
+            if (arg.starts_with("mouse:")) {
+                if (sawButton)
+                    return std::unexpected("cannot combine multiple mouse buttons");
+
+                if (const auto n = strToNumber<uint32_t>(arg.substr(6)); n) {
+                    button = n.value();
+                    sawButton = true;
+                    continue;
+                }
+
+                return std::unexpected(std::format("invalid button \"{}\"", arg));
+            }
+
+            if (const auto n = strToNumber<uint32_t>(arg); n) {
+                if (sawButton)
+                    return std::unexpected("cannot combine multiple mouse buttons");
+
+                button = n.value();
+                sawButton = true;
+                continue;
+            }
+
+            return std::unexpected(std::format("invalid key string \"{}\"", keys));
+        }
+
+        if (!sawButton)
+            return std::unexpected(std::format("gesture keys must include a mouse button, e.g. \"SUPER + mouse:272\""));
+
+        return std::make_pair(modMask, button);
+    }
+
     struct SFieldDesc {
         const char* name;
         ILuaConfigValue* (*factory)();
@@ -734,35 +824,81 @@ static int hlGesture(lua_State* L) {
         return Internal::configError(L, R"(hl.gesture: expected a table, e.g. { fingers = 3, direction = "horizontal", action = "workspace" })");
 
     std::optional<uint32_t> button = std::nullopt;
+    uint32_t                 modMask = 0;
+    bool                     hasKeysField = false;
+    bool                     hasButtonField = false;
+    bool                     hasModsField = false;
+
+    lua_getfield(L, 1, "keys");
+    hasKeysField = !lua_isnil(L, -1);
+    lua_pop(L, 1);
+
     lua_getfield(L, 1, "button");
-    if (!lua_isnil(L, -1)) {
-        CLuaConfigString buttonParser("");
-        auto             buttonErr = buttonParser.parse(L);
-        if (buttonErr.errorCode != PARSE_ERROR_OK) {
+    hasButtonField = !lua_isnil(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, 1, "mods");
+    hasModsField = !lua_isnil(L, -1);
+    lua_pop(L, 1);
+
+    if (hasKeysField && (hasButtonField || hasModsField))
+        return Internal::configError(L, "hl.gesture: field \"keys\" cannot be combined with \"button\" or \"mods\"");
+
+    if (hasKeysField) {
+        lua_getfield(L, 1, "keys");
+        CLuaConfigString keysParser("");
+        auto             keysErr = keysParser.parse(L);
+        if (keysErr.errorCode != PARSE_ERROR_OK) {
             lua_pop(L, 1);
-            return Internal::configError(L, std::format("hl.gesture: field \"button\": {}", buttonErr.message));
+            return Internal::configError(L, std::format("hl.gesture: field \"keys\": {}", keysErr.message));
         }
 
-        const auto              buttonValue = std::string_view{buttonParser.parsed()};
-        std::optional<uint32_t> parsedButton;
+        const auto keysValue = std::string_view{keysParser.parsed()};
+        const auto parsedKeys = parseGestureKeys(keysValue);
+        if (!parsedKeys) {
+            lua_pop(L, 1);
+            return Internal::configError(L, std::format("hl.gesture: field \"keys\": {}", parsedKeys.error()));
+        }
 
-        if (buttonValue.starts_with("mouse:")) {
-            if (const auto n = strToNumber<uint32_t>(std::string{buttonValue.substr(6)}); n)
+        const auto& [modMaskFromKeys, parsedButton] = parsedKeys.value();
+        button = parsedButton;
+        lua_pop(L, 1);
+
+        if (!button.has_value())
+            return Internal::configError(L, "hl.gesture: field \"keys\": gesture keys must include a mouse button");
+
+        modMask = modMaskFromKeys;
+    } else {
+        lua_getfield(L, 1, "button");
+        if (!lua_isnil(L, -1)) {
+            CLuaConfigString buttonParser("");
+            auto             buttonErr = buttonParser.parse(L);
+            if (buttonErr.errorCode != PARSE_ERROR_OK) {
+                lua_pop(L, 1);
+                return Internal::configError(L, std::format("hl.gesture: field \"button\": {}", buttonErr.message));
+            }
+
+            const auto              buttonValue = std::string_view{buttonParser.parsed()};
+            std::optional<uint32_t> parsedButton;
+
+            if (buttonValue.starts_with("mouse:")) {
+                if (const auto n = strToNumber<uint32_t>(buttonValue.substr(6)); n)
+                    parsedButton = n.value();
+                else {
+                    lua_pop(L, 1);
+                    return Internal::configError(L, std::format("hl.gesture: invalid button \"{}\"", buttonValue));
+                }
+            } else if (const auto n = strToNumber<uint32_t>(buttonValue); n) {
                 parsedButton = n.value();
-            else {
+            } else {
                 lua_pop(L, 1);
                 return Internal::configError(L, std::format("hl.gesture: invalid button \"{}\"", buttonValue));
             }
-        } else if (const auto n = strToNumber<uint32_t>(std::string{buttonValue}); n) {
-            parsedButton = n.value();
-        } else {
-            lua_pop(L, 1);
-            return Internal::configError(L, std::format("hl.gesture: invalid button \"{}\"", buttonValue));
-        }
 
-        button = parsedButton;
+            button = parsedButton;
+        }
+        lua_pop(L, 1);
     }
-    lua_pop(L, 1);
 
     const auto    hasButton = button.has_value();
     CLuaConfigInt fingersParser(hasButton ? 1 : 3, hasButton ? 1 : 2, 9);
@@ -818,18 +954,19 @@ static int hlGesture(lua_State* L) {
 
 #undef GET_ACTION_STRING
 
-    uint32_t modMask = 0;
-    lua_getfield(L, 1, "mods");
-    if (!lua_isnil(L, -1)) {
-        CLuaConfigString modsParser("");
-        auto             modsErr = modsParser.parse(L);
-        if (modsErr.errorCode != PARSE_ERROR_OK) {
-            lua_pop(L, 1);
-            return Internal::configError(L, std::format("hl.gesture: field \"mods\": {}", modsErr.message));
+    if (!hasKeysField) {
+        lua_getfield(L, 1, "mods");
+        if (!lua_isnil(L, -1)) {
+            CLuaConfigString modsParser("");
+            auto             modsErr = modsParser.parse(L);
+            if (modsErr.errorCode != PARSE_ERROR_OK) {
+                lua_pop(L, 1);
+                return Internal::configError(L, std::format("hl.gesture: field \"mods\": {}", modsErr.message));
+            }
+            modMask = g_pKeybindManager->stringToModMask(modsParser.parsed());
         }
-        modMask = g_pKeybindManager->stringToModMask(modsParser.parsed());
+        lua_pop(L, 1);
     }
-    lua_pop(L, 1);
 
     float deltaScale = 1.F;
     lua_getfield(L, 1, "scale");
