@@ -361,3 +361,11 @@ hl.window_rule({
 --     direction = "horizontal",
 --     action = "scroll_move",
 -- })
+--
+-- You can also bind the same gesture to a modifier combination, e.g. Meta + mouse drag.
+-- hl.gesture({
+--     button = "mouse:274",
+--     mods = "SUPER",
+--     direction = "horizontal",
+--     action = "scroll_move",
+-- })
