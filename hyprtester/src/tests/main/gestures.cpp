@@ -60,6 +60,16 @@ TEST_CASE(gestures) {
         EXPECT_CONTAINS(str, "floating: 1");
     }
 
+    OK(getFromSocket("/eval hl.gesture({ button = 'mouse:274', direction = 'right', action = 'float' })"));
+    OK(getFromSocket("/eval hl.plugin.test.gesture_button_press(274)"));
+    OK(getFromSocket("/eval hl.plugin.test.gesture_motion(300, 0)"));
+    OK(getFromSocket("/eval hl.plugin.test.gesture_button_release(274)"));
+
+    {
+        auto str = getFromSocket("/clients");
+        EXPECT_CONTAINS(str, "floating: 0");
+    }
+
     OK(getFromSocket("/eval hl.plugin.test.gesture('down', 3)"));
 
     {

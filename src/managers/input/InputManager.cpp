@@ -142,6 +142,8 @@ void CInputManager::onMouseMoved(IPointer::SMotionEvent e) {
     if (e.mouse)
         recheckMouseWarpOnMouseInput();
 
+    g_pTrackpadGestures->gestureMotion(IPointer::SMotionEvent{.timeMs = e.timeMs, .delta = DELTA, .unaccel = unaccel, .mouse = e.mouse, .device = e.device});
+
     // an interactive move or resize is an exclusive grab, so don't feed relative motion to the window being
     // dragged. a pointer-locked game would otherwise pan its camera from the drag itself.
     if (!g_layoutManager->dragController()->target())
@@ -733,6 +735,11 @@ void CInputManager::onMouseButton(IPointer::SButtonEvent e, SP<IPointer> mouse) 
 
     if (e.mouse)
         recheckMouseWarpOnMouseInput();
+
+    if (e.state == WL_POINTER_BUTTON_STATE_PRESSED)
+        g_pTrackpadGestures->gestureButtonPressed(e);
+    else
+        g_pTrackpadGestures->gestureButtonReleased(e);
 
     m_lastCursorMovement.reset();
 

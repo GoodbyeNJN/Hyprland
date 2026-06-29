@@ -354,3 +354,10 @@ hl.window_rule({
     move  = "20 monitor_h-120",
     float = true,
 })
+
+-- Example: hold a mouse button and drag to trigger a gesture from motion delta.
+-- hl.gesture({
+--     button = "mouse:274",
+--     direction = "horizontal",
+--     action = "scroll_move",
+-- })
