@@ -70,43 +70,8 @@ namespace {
             if (arg.empty())
                 continue;
 
-            if (arg == "SHIFT") {
-                modMask |= HL_MODIFIER_SHIFT;
-                continue;
-            }
-
-            if (arg == "CAPS") {
-                modMask |= HL_MODIFIER_CAPS;
-                continue;
-            }
-
-            if (arg == "CTRL" || arg == "CONTROL") {
-                modMask |= HL_MODIFIER_CTRL;
-                continue;
-            }
-
-            if (arg == "ALT" || arg == "MOD1") {
-                modMask |= HL_MODIFIER_ALT;
-                continue;
-            }
-
-            if (arg == "MOD2") {
-                modMask |= HL_MODIFIER_MOD2;
-                continue;
-            }
-
-            if (arg == "MOD3") {
-                modMask |= HL_MODIFIER_MOD3;
-                continue;
-            }
-
-            if (arg == "SUPER" || arg == "WIN" || arg == "LOGO" || arg == "MOD4" || arg == "META") {
-                modMask |= HL_MODIFIER_META;
-                continue;
-            }
-
-            if (arg == "MOD5") {
-                modMask |= HL_MODIFIER_MOD5;
+            if (const auto mask = Internal::modFromSv(arg); mask.has_value()) {
+                modMask |= *mask;
                 continue;
             }
 

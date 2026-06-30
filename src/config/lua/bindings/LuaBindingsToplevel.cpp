@@ -20,27 +20,6 @@ using namespace Config::Lua;
 using namespace Config::Lua::Bindings;
 using namespace Hyprutils::String;
 
-static std::optional<eKeyboardModifiers> modFromSv(std::string_view sv) {
-    if (sv == "SHIFT")
-        return HL_MODIFIER_SHIFT;
-    if (sv == "CAPS")
-        return HL_MODIFIER_CAPS;
-    if (sv == "CTRL" || sv == "CONTROL")
-        return HL_MODIFIER_CTRL;
-    if (sv == "ALT" || sv == "MOD1")
-        return HL_MODIFIER_ALT;
-    if (sv == "MOD2")
-        return HL_MODIFIER_MOD2;
-    if (sv == "MOD3")
-        return HL_MODIFIER_MOD3;
-    if (sv == "SUPER" || sv == "WIN" || sv == "LOGO" || sv == "MOD4" || sv == "META")
-        return HL_MODIFIER_META;
-    if (sv == "MOD5")
-        return HL_MODIFIER_MOD5;
-
-    return std::nullopt;
-}
-
 static bool isSymSpecial(std::string_view sv) {
     if (sv == "mouse_down" || sv == "mouse_up" || sv == "mouse_left" || sv == "mouse_right")
         return true;
@@ -64,7 +43,7 @@ static std::expected<void, std::string> parseKeyString(SKeybind& kb, std::string
     for (const auto& a : vl) {
         auto arg = Hyprutils::String::trim(a);
 
-        auto mask = modFromSv(arg);
+        auto mask = Internal::modFromSv(arg);
 
         if (!mask)
             modsEnded = true;

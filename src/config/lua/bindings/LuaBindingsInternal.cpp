@@ -49,6 +49,27 @@ std::optional<double> Internal::tableOptNum(lua_State* L, int idx, const char* f
     return v;
 }
 
+std::optional<eKeyboardModifiers> Internal::modFromSv(std::string_view sv) {
+    if (sv == "SHIFT")
+        return HL_MODIFIER_SHIFT;
+    if (sv == "CAPS")
+        return HL_MODIFIER_CAPS;
+    if (sv == "CTRL" || sv == "CONTROL")
+        return HL_MODIFIER_CTRL;
+    if (sv == "ALT" || sv == "MOD1")
+        return HL_MODIFIER_ALT;
+    if (sv == "MOD2")
+        return HL_MODIFIER_MOD2;
+    if (sv == "MOD3")
+        return HL_MODIFIER_MOD3;
+    if (sv == "SUPER" || sv == "WIN" || sv == "LOGO" || sv == "MOD4" || sv == "META")
+        return HL_MODIFIER_META;
+    if (sv == "MOD5")
+        return HL_MODIFIER_MOD5;
+
+    return std::nullopt;
+}
+
 std::optional<bool> Internal::tableOptBool(lua_State* L, int idx, const char* field) {
     lua_getfield(L, idx, field);
     if (lua_isnil(L, -1)) {
