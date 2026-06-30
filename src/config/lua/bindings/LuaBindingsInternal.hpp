@@ -38,6 +38,8 @@ namespace Desktop::Rule {
 
 namespace Config::Lua::Bindings::Internal {
 
+    std::optional<eKeyboardModifiers> modFromSv(std::string_view sv);
+
     struct SWindowRuleEffectDesc {
         const char* name;
         ILuaConfigValue* (*factory)();

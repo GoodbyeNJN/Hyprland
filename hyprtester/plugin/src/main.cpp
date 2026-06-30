@@ -210,6 +210,41 @@ static SDispatchResult simulateGesture(std::string in) {
     return {.success = true};
 }
 
+static SDispatchResult gestureButtonPress(std::string in) {
+    uint32_t button;
+    try {
+        button = std::stoul(in);
+    } catch (...) { return {.success = false, .error = "invalid input"}; }
+
+    g_pTrackpadGestures->gestureButtonPressed(IPointer::SButtonEvent{.button = button, .state = WL_POINTER_BUTTON_STATE_PRESSED, .mouse = true});
+    return {};
+}
+
+static SDispatchResult gestureButtonRelease(std::string in) {
+    uint32_t button;
+    try {
+        button = std::stoul(in);
+    } catch (...) { return {.success = false, .error = "invalid input"}; }
+
+    g_pTrackpadGestures->gestureButtonReleased(IPointer::SButtonEvent{.button = button, .state = WL_POINTER_BUTTON_STATE_RELEASED, .mouse = true});
+    return {};
+}
+
+static SDispatchResult gestureMotion(std::string in) {
+    CVarList2 data(std::move(in));
+    double    x = 0;
+    double    y = 0;
+
+    try {
+        x = std::stod(std::string{data[0]});
+        if (data.size() > 1)
+            y = std::stod(std::string{data[1]});
+    } catch (...) { return {.success = false, .error = "invalid input"}; }
+
+    g_pTrackpadGestures->gestureMotion(IPointer::SMotionEvent{.delta = {x, y}, .mouse = true});
+    return {};
+}
+
 static SDispatchResult pinchUpdate(std::string in) {
     CVarList data(in);
     uint32_t fingers = 2;
@@ -622,6 +657,19 @@ static int luaGesture(lua_State* L) {
     return luaResult(L, ::simulateGesture(std::format("{},{}", direction, fingers)));
 }
 
+static int luaGestureButtonPress(lua_State* L) {
+    return luaResult(L, ::gestureButtonPress(std::to_string((int)luaL_checkinteger(L, 1))));
+}
+
+static int luaGestureButtonRelease(lua_State* L) {
+    return luaResult(L, ::gestureButtonRelease(std::to_string((int)luaL_checkinteger(L, 1))));
+}
+
+static int luaGestureMotion(lua_State* L) {
+    std::string in = std::format("{},{}", (double)luaL_checknumber(L, 1), (double)luaL_checknumber(L, 2));
+    return luaResult(L, ::gestureMotion(in));
+}
+
 static int luaPinchUpdate(lua_State* L) {
     std::string in = std::format("{},{}", (int)luaL_checkinteger(L, 1), (double)luaL_checknumber(L, 2));
 
@@ -731,6 +779,9 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     addLuaFn("vkb", ::luaVkb);
     addLuaFn("alt", ::luaAlt);
     addLuaFn("gesture", ::luaGesture);
+    addLuaFn("gesture_button_press", ::luaGestureButtonPress);
+    addLuaFn("gesture_button_release", ::luaGestureButtonRelease);
+    addLuaFn("gesture_motion", ::luaGestureMotion);
     addLuaFn("pinch_update", ::luaPinchUpdate);
     addLuaFn("pinch_end", ::luaPinchEnd);
     addLuaFn("expect_cursor_zoom", ::luaExpectCursorZoom);

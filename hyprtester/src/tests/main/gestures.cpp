@@ -60,6 +60,50 @@ TEST_CASE(gestures) {
         EXPECT_CONTAINS(str, "floating: 1");
     }
 
+    OK(getFromSocket("/eval hl.gesture({ button = 'mouse:274', direction = 'right', action = 'float' })"));
+    OK(getFromSocket("/eval hl.gesture({ keys = 'SUPER + mouse:274', direction = 'right', action = 'float' })"));
+    OK(getFromSocket("/eval hl.gesture({ keys = 'SUPER + CTRL + mouse:272', direction = 'right', action = 'float' })"));
+    OK(getFromSocket("/eval hl.plugin.test.gesture_button_press(274)"));
+    OK(getFromSocket("/eval hl.plugin.test.gesture_motion(300, 0)"));
+    OK(getFromSocket("/eval hl.plugin.test.gesture_button_release(274)"));
+
+    {
+        auto str = getFromSocket("/clients");
+        EXPECT_CONTAINS(str, "floating: 0");
+    }
+
+    OK(getFromSocket("/eval hl.gesture({ button = 'mouse:274', mods = 'ALT', direction = 'right', action = 'float' })"));
+
+    {
+        const auto before = getFromSocket("/clients");
+        const bool beforeFloating = before.find("floating: 1") != std::string::npos;
+
+        OK(getFromSocket("/eval hl.plugin.test.gesture_button_press(274)"));
+        OK(getFromSocket("/eval hl.plugin.test.gesture_motion(300, 0)"));
+        OK(getFromSocket("/eval hl.plugin.test.gesture_button_release(274)"));
+
+        const auto after = getFromSocket("/clients");
+        const bool afterFloating = after.find("floating: 1") != std::string::npos;
+        EXPECT(beforeFloating == afterFloating, true);
+    }
+
+    OK(getFromSocket("/eval hl.plugin.test.alt(1)"));
+
+    {
+        const auto before = getFromSocket("/clients");
+        const bool beforeFloating = before.find("floating: 1") != std::string::npos;
+
+        OK(getFromSocket("/eval hl.plugin.test.gesture_button_press(274)"));
+        OK(getFromSocket("/eval hl.plugin.test.gesture_motion(300, 0)"));
+        OK(getFromSocket("/eval hl.plugin.test.gesture_button_release(274)"));
+
+        const auto after = getFromSocket("/clients");
+        const bool afterFloating = after.find("floating: 1") != std::string::npos;
+        EXPECT(beforeFloating != afterFloating, true);
+    }
+
+    OK(getFromSocket("/eval hl.plugin.test.alt(0)"));
+
     OK(getFromSocket("/eval hl.plugin.test.gesture('down', 3)"));
 
     {
